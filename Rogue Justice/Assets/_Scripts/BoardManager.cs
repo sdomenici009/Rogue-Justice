@@ -32,13 +32,70 @@ public class BoardManager : MonoBehaviour {
     [SerializeField]
     private Sprite tempWallSprite;
 
+    [SerializeField]
+    private Sprite goalSprite;
+
+    [SerializeField]
+    private Sprite startSprite;
+
     public Vector3 GetBoardTileTransformPosition(int x, int y) {
         return boardTileTransforms[x, y].position;
     }
-    
+
     public void Initialize() {
-        InitializeBoard();
-        InitializeBoardTransforms();
+        //InitializeBoard();
+        //InitializeBoardTransforms();
+    }
+
+    public void LoadGrid(IcePuzzleGenerator.Grid grid) {
+        boardTiles = new BoardTile[width, height];
+
+        for (int j = 0; j < height; j++) {
+            for (int i = 0; i < width; i++) {
+                bool isWalkable = true;
+
+                if (grid.data[i + j * width] == 'O') {
+                    isWalkable = false;
+                }
+
+                boardTiles[i, j] = new BoardTile(i, j, isWalkable);
+
+                if (i > 0) {
+                    boardTiles[i, j].Neighbors.Add(boardTiles[i - 1, j]);
+                    boardTiles[i - 1, j].Neighbors.Add(boardTiles[i, j]);
+                }
+
+                if (j > 0) {
+                    boardTiles[i, j].Neighbors.Add(boardTiles[i, j - 1]);
+                    boardTiles[i, j - 1].Neighbors.Add(boardTiles[i, j]);
+                }
+            }
+        }
+
+        Player.Instance.currentTile = boardTiles[0, 1];
+
+        boardTileTransforms = new Transform[width, height];
+
+        for (int j = 0; j < height; j++) {
+            for (int i = 0; i < width; i++) {
+                boardTileTransforms[i, j] = ((GameObject)Instantiate(boardTilePrefab, boardTileParent)).transform;
+
+                if (!boardTiles[i, j].IsWalkable) {
+                    boardTileTransforms[i, j].GetComponent<Image>().sprite = tempWallSprite;
+                }
+
+                if (grid.goal == i + j * width) {
+                    boardTileTransforms[i, j].GetComponent<Image>().sprite = goalSprite;
+                }
+
+                if (grid.player == i + j * width) {
+                    boardTileTransforms[i, j].GetComponent<Image>().sprite = startSprite;
+                }
+
+                BoardTile goal = boardTiles[i, j];
+                boardTileTransforms[i, j].GetComponent<Button>().onClick.AddListener(() => goal.PathTo());
+            }
+        }
     }
 
     private void InitializeBoard() {
@@ -94,6 +151,8 @@ public class BoardManager : MonoBehaviour {
         cameFrom.Clear();
         costSoFar.Clear();
 
+        Debug.Log(initialTile);
+
         cameFrom[initialTile] = initialTile;
         costSoFar[initialTile] = 0;
 
@@ -129,7 +188,7 @@ public class BoardManager : MonoBehaviour {
         List<BoardTile> path = new List<BoardTile>();
 
         while (true) {
-            if(currentTile.x == initialTile.x && currentTile.y == initialTile.y) {
+            if (currentTile.x == initialTile.x && currentTile.y == initialTile.y) {
                 break;
             }
 
